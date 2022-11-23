@@ -1,0 +1,13 @@
+{
+    "python.linting.flake8Enabled": false,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.banditEnabled": false,
+    "python.linting.prospectorEnabled": false,
+    "cSpell.words": [
+        "aggrid",
+        "balham",
+        "jscode"
+    ],
+    "python.linting.mypyEnabled": false
+}

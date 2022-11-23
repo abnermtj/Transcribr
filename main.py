@@ -3,68 +3,27 @@ Hosts a web app that transcribes media
 """
 
 import os
-import time
 import shutil
-from typing import Iterator
 import pandas as pd
 import whisper
+import whisper.tokenizer as whisper_tok
 from pydub import AudioSegment
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder
 from st_aggrid.shared import GridUpdateMode
 from mutagen.mp3 import MP3
+from transcribe import scribe
+from utils import get_file_size, get_pretty_date, get_pretty_duration
+
+INPUT_DIR = "input"
+OUTPUT_DIR = "output"
 
 model = whisper.load_model("small")
+
 
 st.set_page_config(
     page_title="Transcibr", page_icon="🧊", layout="wide"
 )  # Always ontop of main.py
-
-
-def format_timestamp(
-    seconds: float, always_include_hours: bool = False, decimal_marker: str = "."
-):
-    """
-    Formats timestamps to one suitable for srt files
-    """
-    assert seconds >= 0, "non-negative timestamp expected"
-    milliseconds = round(seconds * 1000.0)
-
-    hours = milliseconds // 3_600_000
-    milliseconds -= hours * 3_600_000
-
-    minutes = milliseconds // 60_000
-    milliseconds -= minutes * 60_000
-
-    seconds = milliseconds // 1_000
-    milliseconds -= seconds * 1_000
-
-    hours_marker = f"{hours:02d}:" if always_include_hours or hours > 0 else ""
-    return (
-        f"{hours_marker}{minutes:02d}:{seconds:02d}{decimal_marker}{milliseconds:03d}"
-    )
-
-
-def to_srt(transcript: Iterator[dict]):
-    """
-    Convert a transcript to a string in SRT format
-    """
-    out = ""
-    for i, segment in enumerate(transcript, start=1):
-        out += f"{i}\n"
-        out += f"{format_timestamp(segment['start'], True, ',')} --> "
-        out += f"{format_timestamp(segment['end'], True, ',')}\n"
-        out += f"{segment['text'].strip().replace('-->', '->')}\n"
-
-    return out
-
-
-def scribe(audio_path):
-    """
-    Transcribes the model and returns a string for the srt subtitle file
-    """
-    result = model.transcribe(audio_path)
-    return to_srt(result["segments"])
 
 
 def _max_width_():
@@ -137,6 +96,11 @@ def transcribe_process():
     """
     Process for transcribe page
     """
+
+    Languages = list(whisper_tok.LANGUAGES.values())
+    Languages.insert(0, "Auto")
+    input_lang = st.selectbox("Input language", Languages)
+
     uploader_file_list = st.file_uploader(
         "Upload Audio and Video files to transcribe",
         type=["mkv", "mp4", "avi", "wav", "mp3"],
@@ -149,30 +113,22 @@ def transcribe_process():
     )
 
     for uploaded_file in uploader_file_list:
-        text_value = ""
         if uploaded_file is not None:
-            file_name = uploaded_file.name
-            input_file_path = "input/" + uploaded_file.name
-            pre, _ = os.path.splitext(file_name)
-            output_file_path = "./output/" + pre + ".mp3"
+            cap = st.caption("Processing")
 
-            with open(input_file_path, mode="wb") as save:
-                save.write(uploaded_file.read())  # save video to disk
-                audio = AudioSegment.from_file(input_file_path)
-                audio.export(output_file_path, format="mp3")
+            file_name, pre, output_file_path, file_size = process_file(uploaded_file)
 
-            file_size = get_file_size(uploaded_file)
-            st.caption("Working On " + file_name + "(" + str(file_size) + " MB)")
+            cap.caption(
+                body=("Transcribing " + file_name + "(" + str(file_size) + " MB)")
+            )
 
-            text_value = scribe(output_file_path)
+            text_value = scribe(model, input_lang, output_file_path)
             with open("output/" + pre + ".srt", "w") as text_file:
                 text_file.write(text_value)
 
             if text_value:
                 col1, col2 = st.columns(2)
-
                 col1.success(file_name + " is done")
-
                 col2.download_button(
                     "Download .srt",
                     text_value,
@@ -191,41 +147,23 @@ def transcribe_process():
                 """
                 )
 
-    shutil.make_archive("all", "zip", "output")
 
-
-def get_file_size(file):
+def process_file(uploaded_file):
     """
-    Input a file object and you get file size in megabytes
+    Saves the file to disk and converts it to mp3. Relevant file features extracted and returned
     """
-    old_file_position = file.tell()
-    file.seek(0, os.SEEK_END)
-    getsize = file.tell()
-    file.seek(old_file_position, os.SEEK_SET)
-    return round((getsize / 1000000), 1)
+    file_name = uploaded_file.name
+    input_file_path = "input/" + uploaded_file.name
+    filename_no_extension, _ = os.path.splitext(file_name)
+    output_file_path = "output/" + filename_no_extension + ".mp3"
 
+    with open(input_file_path, mode="wb") as save:
+        save.write(uploaded_file.read())  # save video to disk
+        audio = AudioSegment.from_file(input_file_path)
+        audio.export(output_file_path, format="mp3")
 
-def get_pretty_date(seconds):
-    """
-    seconds - seconds from epoch to a date
-    """
-    return time.ctime(seconds)
-
-
-def get_pretty_duration(seconds):
-    """
-    Coverts to [hours], minutes, seconds
-    """
-    seconds = seconds % (24 * 3600)
-    hours = seconds // 3600
-    seconds %= 3600
-    minutes = seconds // 60
-    seconds %= 60
-
-    if hours != 0:
-        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-    return f"{minutes:02d}:{seconds:02d}"
+    file_size = get_file_size(uploaded_file)
+    return file_name, filename_no_extension, output_file_path, file_size
 
 
 def history_process():
@@ -237,6 +175,8 @@ def history_process():
         File history
         """
     )
+    shutil.make_archive("all", "zip", "output")
+
     with open("all.zip", mode="rb") as archive:
         st.download_button(
             label="Download all srt",
