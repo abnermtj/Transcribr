@@ -83,50 +83,56 @@ def main():
 
     pages[page]()
 
-
 def transcribe_process():
-    # TODO SUPPORT BTACH PROCESSING
-    # f = st.file_uploader("", type=[".mp3"], accept_multiple_files=True)
-    uploaded_file = st.file_uploader("", type=['mkv', 'mp4','avi','wav', 'mp3'])
+    uploader_file_list = st.file_uploader("Upload Audio and Video files to transcribe", type=['mkv', 'mp4','avi','wav', 'mp3'], accept_multiple_files=True)
     st.info(
             f"""
-            👆 Upload Audio or Video file. 
+            👆 Upload Multiple Audio or Video files. 
             """
             )
 
-    text_value = ""
-    if uploaded_file is not None:
-        file_name = uploaded_file.name
-        with open(file_name, mode='wb') as save:
-            save.write(uploaded_file.read()) # save video to disk
+    for uploaded_file in uploader_file_list:
+        text_value = ""
+        if uploaded_file is not None:
+            file_name = uploaded_file.name
+
+            with open(file_name, mode='wb') as save:
+                save.write(uploaded_file.read()) # save video to disk
+
             audio = AudioSegment.from_file(file_name)
             audio.export("./output/file.mp3", format="mp3")
 
-        path_in = uploaded_file.name
-        file_size = get_file_size(uploaded_file)
-        st.caption("The size of this file is: " + str(file_size) + "MB")
+            file_size = get_file_size(uploaded_file)
+            st.caption("Working On " + file_name + "(" + str(file_size) + " MB)")
 
-        text_value =  scribe(path_in)
+            text_value =  scribe(file_name)
+            if text_value:
+                col1, col2 = st.columns(2)
+                # Print the output to your Streamlit app
+                col1.success(file_name + " is done")
 
-    if text_value:
-        # Print the output to your Streamlit app
-        st.success(path_in + " is done")
+                pre, ext = os.path.splitext(file_name)
 
-        st.download_button(
-        "Download .srt",
-        text_value,
-        file_name=None,
-        mime=None,
-        key=None,
-        help=None,
-        on_click=None,
-        args=None,
-        kwargs=None,
-        )
+                col2.download_button(
+                "Download .srt",
+                text_value,
+                file_name= pre+'.srt',
+                mime=None,
+                key=None,
+                help=None,
+                on_click=None,
+                args=None,
+                kwargs=None,
+                )
+
     expander = st.expander("History")
     with expander:
+        st.info(
+                f"""
+                👆 Upload Multiple Audio or Video files. 
+                """
+                )
         pass
-        # st.write(f"Download ALL[Google Sheet]({GSHEET_URL})")
 
 def get_file_size(f):
     old_file_position = f.tell()
