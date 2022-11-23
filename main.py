@@ -6,7 +6,7 @@ import os
 import shutil
 import pandas as pd
 import whisper
-import pynvml
+# import pynvml
 from pydub import AudioSegment
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder
@@ -94,11 +94,11 @@ def aggrid_interactive_table(data_frame: pd.DataFrame):
     return selection
 
 
-def get_memory_free_MiB(gpu_index):
-    pynvml.nvmlInit()
-    handle = pynvml.nvmlDeviceGetHandleByIndex(int(gpu_index))
-    mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-    return mem_info.free // 1024**2
+# def get_memory_free_MiB(gpu_index):
+#     pynvml.nvmlInit()
+#     handle = pynvml.nvmlDeviceGetHandleByIndex(int(gpu_index))
+#     mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+#     return mem_info.free // 1024**2
 
 
 def click_confirm ():
@@ -136,10 +136,10 @@ def transcribe_process():
 
 
     available_vram = 4000000
-    try:
-        available_vram = get_memory_free_MiB(0) # assume only 1 GPU
-    except:
-        st.info ("Unable to detect NVDia GPU on host computer")
+    # try:
+    #     available_vram = get_memory_free_MiB(0) # assume only 1 GPU
+    # except:
+    #     st.info ("Unable to detect NVDia GPU on host computer")
 
 
     continue_anyway = True
