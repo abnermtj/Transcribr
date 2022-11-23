@@ -131,6 +131,9 @@ def transcribe_process():
         ),
     )
 
+    task = st.radio("Select output task", ['Translate to English', 'Transcribe'])
+                                                                  
+
 
     available_vram = get_memory_free_MiB(0) # assume only 1 GPU
     continue_anyway = True
@@ -187,10 +190,10 @@ def transcribe_process():
             )
 
             cap.code(
-                body=("Transcribing '" + file_name + "' (" + str(file_size) + " MB)\n" "Detected Language: " + input_lang + "\nModel: " +  loaded_quality)
+                body=(task + " '" + file_name + "' (" + str(file_size) + " MB)\n" "Detected Language: " + input_lang + "\nModel: " +  loaded_quality)
             )
 
-            text_value = scribe(model, input_lang, output_file_path)
+            text_value = scribe(model,input_lang, task, output_file_path)
             with open(
                 "output/" + file_name_prefix + ".srt", "w", encoding="utf-8"
             ) as text_file:

@@ -1,4 +1,6 @@
+mutagen==1.46.0
 pandas==1.5.0
 pydub==0.25.1
+pynvml==11.4.1
 streamlit==1.15.1
 whisper==1.1.10

@@ -45,12 +45,16 @@ def to_srt(transcript: Iterator[dict]):
     return out
 
 
-def scribe(model, input_lang, audio_path):
+def scribe(model, input_lang, task, audio_path):
     """
     Transcribes the model and returns a string for the srt subtitle file
     """
     if input_lang == "Auto":
         input_lang = None
 
-    result = model.transcribe(audio_path, language=input_lang)
+
+    if task == "Transcribe":
+        result = model.transcribe(audio_path, language=input_lang, task="transcribe")
+    else:
+        result = model.transcribe(audio_path, language=input_lang, task ="translate")
     return to_srt(result["segments"])
