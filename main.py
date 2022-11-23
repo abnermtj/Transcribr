@@ -78,14 +78,15 @@ def aggrid_interactive_table(data_frame: pd.DataFrame):
         data_frame, enableRowGroup=True, enableValue=True, enablePivot=True
     )
 
-    options.configure_side_bar()
+    # options.configure_side_bar()
 
     options.configure_selection("single")
     selection = AgGrid(
         data_frame,
         enable_enterprise_modules=True,
         gridOptions=options.build(),
-        theme="balham",
+        
+        theme="streamlit",
         update_mode=GridUpdateMode.MODEL_CHANGED,
         allow_unsafe_jscode=True,
     )
@@ -160,13 +161,13 @@ def transcribe_process():
 
 
     cap = st.code("Please upload")
+    my_bar = st.progress(0)
 
     with open("all.zip", mode="rb") as archive:
        st.download_button(
-            label="Download all srt",
+            label="Download all",
             data=archive,
             file_name="all.zip",
-            disabled = False,
             mime=None,
             key=None,
             help=None,
@@ -175,7 +176,9 @@ def transcribe_process():
             kwargs=None,
         )
 
+    count = 0
     for uploaded_file in uploader_file_list:
+        count += 1
         if uploaded_file is not None:
             cap.code(body = "Processing")
 
@@ -216,6 +219,8 @@ def transcribe_process():
                 No subtitles found.
                 """
                 )
+            percent_complete = count/ len(uploader_file_list)
+            my_bar.progress(percent_complete)
 
     shutil.make_archive("all", "zip", "output")
 
