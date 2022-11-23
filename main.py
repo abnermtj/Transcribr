@@ -62,7 +62,7 @@ def main():
 
     with st.sidebar:
         st.title("Pages")
-        page = st.radio("", tuple(pages.keys()))
+        page = st.radio("Select", tuple(pages.keys()), label_visibility = 'hidden')
 
     pages[page]()
 
@@ -291,8 +291,8 @@ def history_process():
             text_value = file.read()
 
         st.download_button(
-            "Download selected",
-            text_value,
+            label="Download selected",
+            data=text_value,
             file_name=pre + ".srt",
             mime=None,
             key=None,
