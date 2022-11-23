@@ -7,6 +7,7 @@ import shutil
 import pandas as pd
 import whisper
 import whisper.tokenizer as whisper_tok
+import pynvml
 from pydub import AudioSegment
 import streamlit as st
 from st_aggrid import AgGrid, GridOptionsBuilder
@@ -18,8 +19,8 @@ from utils import get_file_size, get_pretty_date, get_pretty_duration
 INPUT_DIR = "input"
 OUTPUT_DIR = "output"
 
-model = whisper.load_model("small")
-
+loaded_quality = "small"
+model = whisper.load_model(loaded_quality)
 
 st.set_page_config(
     page_title="Transcibr", page_icon="🧊", layout="wide"
@@ -92,39 +93,108 @@ def aggrid_interactive_table(data_frame: pd.DataFrame):
     return selection
 
 
+def get_memory_free_MiB(gpu_index):
+    pynvml.nvmlInit()
+    handle = pynvml.nvmlDeviceGetHandleByIndex(int(gpu_index))
+    mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+    return mem_info.free // 1024**2
+
+
+def click_confirm ():
+    confirm = True
+
+download_all_disable = True
+
 def transcribe_process():
     """
     Process for transcribe page
     """
 
+    st.info(
+        """
+        Credits to OpenAI's Whisper
+        """
+    )
+
     Languages = list(whisper_tok.LANGUAGES.values())
     Languages.insert(0, "Auto")
-    input_lang = st.selectbox("Input language", Languages)
+    input_lang = st.selectbox("Select input language", Languages)
+
+    quality = st.selectbox(
+        "Select quality",
+        (
+            "Low (2GB VRAM)",
+            "Highest (10GB VRAM)",
+            "Medium (5GB VRAM)",
+            "Tiny (1GB VRAM)",
+        ),
+    )
+
+
+    available_vram = get_memory_free_MiB(0) # assume only 1 GPU
+    continue_anyway = True
+    global loaded_quality
+    if quality != loaded_quality:
+        if ((quality == "Tiny (1GB VRAM)" and available_vram < 1000) or
+            (quality == "Low (2GB VRAM)" and available_vram < 2000) or
+            (quality == "Medium (5GB VRAM)" and available_vram <5000) or
+            (quality == "Highest (10GB VRAM)" and available_vram < 10000)):
+                continue_anyway = get_user_confirm()
+        loaded_quality = quality
 
     uploader_file_list = st.file_uploader(
-        "Upload Audio and Video files to transcribe",
+        "Upload Audio/Video files to transcribe",
         type=["mkv", "mp4", "avi", "wav", "mp3"],
         accept_multiple_files=True,
     )
-    st.info(
-        """
-        👆 Upload Multiple Audio or Video files
-        """
-    )
+
+    if continue_anyway:
+        if quality == "Tiny (1GB VRAM)" :
+               model = whisper.load_model("tiny")
+        elif quality == "Low (2GB VRAM)" :
+                model = whisper.load_model("small")
+        elif quality == "Medium (5GB VRAM)" :
+                model = whisper.load_model("medium")
+        elif quality == "Highest (10GB VRAM)" :
+                model = whisper.load_model("large")
+
+
+    cap = st.code("Please upload")
+
+    with open("all.zip", mode="rb") as archive:
+       st.download_button(
+            label="Download all srt",
+            data=archive,
+            file_name="all.zip",
+            disabled = False,
+            mime=None,
+            key=None,
+            help=None,
+            on_click=None,
+            args=None,
+            kwargs=None,
+        )
 
     for uploaded_file in uploader_file_list:
         if uploaded_file is not None:
-            cap = st.caption("Processing")
+            cap.code(body = "Processing")
 
-            file_name, pre, output_file_path, file_size = process_file(uploaded_file)
+            file_name, file_name_prefix, output_file_path, file_size = process_file(
+                uploaded_file
+            )
 
-            cap.caption(
-                body=("Transcribing " + file_name + "(" + str(file_size) + " MB)")
+            cap.code(
+                body=("Transcribing '" + file_name + "' (" + str(file_size) + " MB)\n" "Detected Language: " + input_lang + "\nModel: " +  loaded_quality)
             )
 
             text_value = scribe(model, input_lang, output_file_path)
-            with open("output/" + pre + ".srt", "w") as text_file:
+            with open(
+                "output/" + file_name_prefix + ".srt", "w", encoding="utf-8"
+            ) as text_file:
                 text_file.write(text_value)
+
+            shutil.make_archive("all", "zip", "output")
+
 
             if text_value:
                 col1, col2 = st.columns(2)
@@ -132,7 +202,7 @@ def transcribe_process():
                 col2.download_button(
                     "Download .srt",
                     text_value,
-                    file_name=pre + ".srt",
+                    file_name=file_name_prefix + ".srt",
                     mime=None,
                     key=None,
                     help=None,
@@ -147,6 +217,12 @@ def transcribe_process():
                 """
                 )
 
+    shutil.make_archive("all", "zip", "output")
+
+def get_user_confirm():
+    st.warning ("You may not have enough VRAM")
+    return True
+
 
 def process_file(uploaded_file):
     """
@@ -154,8 +230,8 @@ def process_file(uploaded_file):
     """
     file_name = uploaded_file.name
     input_file_path = "input/" + uploaded_file.name
-    filename_no_extension, _ = os.path.splitext(file_name)
-    output_file_path = "output/" + filename_no_extension + ".mp3"
+    filename_prefix, _ = os.path.splitext(file_name)
+    output_file_path = "output/" + filename_prefix + ".mp3"
 
     with open(input_file_path, mode="wb") as save:
         save.write(uploaded_file.read())  # save video to disk
@@ -163,7 +239,7 @@ def process_file(uploaded_file):
         audio.export(output_file_path, format="mp3")
 
     file_size = get_file_size(uploaded_file)
-    return file_name, filename_no_extension, output_file_path, file_size
+    return file_name, filename_prefix, output_file_path, file_size
 
 
 def history_process():
@@ -179,7 +255,7 @@ def history_process():
 
     with open("all.zip", mode="rb") as archive:
         st.download_button(
-            label="Download all srt",
+            label="Download all",
             data=archive,
             file_name="all.zip",
             mime=None,
@@ -208,7 +284,7 @@ def history_process():
 
         # Get srt file
         pre, _ = os.path.splitext(select_data["name"])
-        with open("output/" + pre + ".srt") as file:
+        with open("output/" + pre + ".srt", encoding="utf-8") as file:
             text_value = file.read()
 
         st.download_button(

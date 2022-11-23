@@ -49,15 +49,8 @@ def scribe(model, input_lang, audio_path):
     """
     Transcribes the model and returns a string for the srt subtitle file
     """
-    if input_lang != "Auto":
-        # make log-Mel spectrogram and move to the same device as the model
-        audio = whisper.load_audio(audio_path)
-        audio = whisper.pad_or_trim(audio)
+    if input_lang == "Auto":
+        input_lang = None
 
-        mel = whisper.log_mel_spectrogram(audio).to(model.device)
-        options = whisper.DecodingOptions(fp16=False, language=input_lang)
-
-        result = whisper.decode(model, mel, options)
-    else:
-        result = model.transcribe(audio_path)
+    result = model.transcribe(audio_path, language=input_lang)
     return to_srt(result["segments"])
