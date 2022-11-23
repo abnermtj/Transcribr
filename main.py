@@ -62,6 +62,7 @@ def main():
         )
 
     with st.sidebar:
+        st.title("Pages")
         page = st.radio("", tuple(pages.keys()))
 
     pages[page]()
