@@ -172,18 +172,21 @@ def transcribe_process():
     cap = st.code("Please upload")
     my_bar = st.progress(0)
 
-    with open("all.zip", mode="rb") as archive:
-       st.download_button(
-            label="Download all",
-            data=archive,
-            file_name="all.zip",
-            mime=None,
-            key=None,
-            help=None,
-            on_click=None,
-            args=None,
-            kwargs=None,
-        )
+    try:
+        with open("all.zip", mode="rb") as archive:
+            st.download_button(
+                    label="Download all",
+                    data=archive,
+                    file_name="all.zip",
+                    mime=None,
+                    key=None,
+                    help=None,
+                    on_click=None,
+                    args=None,
+                    kwargs=None,
+                )
+    except FileNotFoundError:
+        print("File Not Found")
 
     count = 0
     for uploaded_file in uploader_file_list:
@@ -299,19 +302,21 @@ def history_process():
             kwargs=None,
         )
 
-    with open("all.zip", mode="rb") as archive:
-        st.download_button(
-            label="Download all",
-            data=archive,
-            file_name="all.zip",
-            mime=None,
-            key=None,
-            help=None,
-            on_click=None,
-            args=None,
-            kwargs=None,
-        )
-
+    try:
+        with open("all.zip", mode="rb") as archive:
+            st.download_button(
+                label="Download all",
+                data=archive,
+                file_name="all.zip",
+                mime=None,
+                key=None,
+                help=None,
+                on_click=None,
+                args=None,
+                kwargs=None,
+            )
+    except FileNotFoundError:
+        print("File Not Found")
 
 
 if __name__ == "__main__":
