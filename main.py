@@ -254,26 +254,12 @@ def history_process():
     """
     Process for the history page
     """
-    st.info(
+    st.title(
         """
-        File history
+        📁 Export
         """
     )
     shutil.make_archive("all", "zip", "output")
-
-    with open("all.zip", mode="rb") as archive:
-        st.download_button(
-            label="Download all",
-            data=archive,
-            file_name="all.zip",
-            mime=None,
-            key=None,
-            help=None,
-            on_click=None,
-            args=None,
-            kwargs=None,
-        )
-
     file_data_list = []
     for file in os.listdir("output"):
         if file.endswith(".mp3"):
@@ -296,7 +282,7 @@ def history_process():
             text_value = file.read()
 
         st.download_button(
-            "Download .srt",
+            "Download selected",
             text_value,
             file_name=pre + ".srt",
             mime=None,
@@ -306,6 +292,20 @@ def history_process():
             args=None,
             kwargs=None,
         )
+
+    with open("all.zip", mode="rb") as archive:
+        st.download_button(
+            label="Download all",
+            data=archive,
+            file_name="all.zip",
+            mime=None,
+            key=None,
+            help=None,
+            on_click=None,
+            args=None,
+            kwargs=None,
+        )
+
 
 
 if __name__ == "__main__":
