@@ -5,6 +5,16 @@ import os
 from typing import Iterator
 from pydub import AudioSegment
 import shutil
+from st_aggrid import AgGrid, GridOptionsBuilder
+from st_aggrid.shared import GridUpdateMode
+import pandas as pd
+from mutagen.mp3 import MP3
+
+STREAMLIT_AGGRID_URL = "https://github.com/PablocFonseca/streamlit-aggrid"
+
+iris = pd.read_csv(
+    "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv"
+)
 
 model = whisper.load_model("small")
 
@@ -78,9 +88,36 @@ def main():
         )
 
     with st.sidebar:
-        page = st.radio("Select your mode", tuple(pages.keys()))
+        page = st.radio("", tuple(pages.keys()))
 
     pages[page]()
+
+
+def aggrid_interactive_table(df: pd.DataFrame):
+    """Creates an st-aggrid interactive table based on a dataframe.
+    Args:
+        df (pd.DataFrame]): Source dataframe
+    Returns:
+        dict: The selected row
+    """
+    options = GridOptionsBuilder.from_dataframe(
+        df, enableRowGroup=True, enableValue=True, enablePivot=True
+    )
+
+    options.configure_side_bar()
+
+    options.configure_selection("single")
+    selection = AgGrid(
+        df,
+        enable_enterprise_modules=True,
+        gridOptions=options.build(),
+        theme="balham",
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        allow_unsafe_jscode=True,
+    )
+
+    return selection
+
 
 def transcribe_process():
     uploader_file_list = st.file_uploader("Upload Audio and Video files to transcribe", type=['mkv', 'mp4','avi','wav', 'mp3'], accept_multiple_files=True)
@@ -107,6 +144,9 @@ def transcribe_process():
             st.caption("Working On " + file_name + "(" + str(file_size) + " MB)")
 
             text_value =  scribe(output_file_path)
+            text_file = open('output/' + pre + '.srt', "w")
+            text_file.write(text_value)
+
             if text_value:
                 col1, col2 = st.columns(2)
 
@@ -132,21 +172,6 @@ def transcribe_process():
 
     shutil.make_archive('all', 'zip', 'output')
 
-    expander = st.expander("History")
-    with expander:
-        with open('all.zip', mode='rb') as archive:
-                st.download_button(
-                        label="Download all",
-                        data = archive,
-                        file_name= 'all.zip',
-                        mime=None,
-                        key=None,
-                        help=None,
-                        on_click=None,
-                        args=None,
-                        kwargs=None,
-                )
-                pass
 
 def get_file_size(f):
     old_file_position = f.tell()
@@ -161,7 +186,53 @@ def history_process():
                         File history
                         """
             )
-    st.header("TITLE")
+    with open('all.zip', mode='rb') as archive:
+            st.download_button(
+                    label="Download all srt",
+                    data = archive,
+                    file_name= 'all.zip',
+                    mime=None,
+                    key=None,
+                    help=None,
+                    on_click=None,
+                    args=None,
+                    kwargs=None,
+            )
+            pass
+
+    my_df = []
+    for file in os.listdir("output"):
+        if file.endswith(".mp3"):
+            d = {
+                'name' : file,  # some formula for obtaining values
+                'date' : os.path.getmtime("output/" + file),
+                'duration' : MP3("output/" + file).info.length
+            }
+            my_df.append(d)
+    my_df = pd.DataFrame(my_df)
+    
+
+    selection = aggrid_interactive_table(df=my_df) 
+    if selection["selected_rows"]:
+        select_data =selection["selected_rows"][0] 
+        st.write("Selected:" + select_data['name'])
+        
+        # Get srt file
+        pre, ext = os.path.splitext(select_data['name'])
+        with open('output/' + pre + '.srt') as f:
+            text_value = f.read()
+
+        st.download_button(
+            "Download .srt",
+            text_value,
+            file_name= pre + '.srt',
+            mime=None,
+            key=None,
+            help=None,
+            on_click=None,
+            args=None,
+            kwargs=None,
+            )
 
 if __name__ == '__main__':
     main()
