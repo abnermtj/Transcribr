@@ -4,6 +4,7 @@ import whisper
 import os
 from typing import Iterator
 from pydub import AudioSegment
+import shutil
 
 model = whisper.load_model("small")
 
@@ -42,9 +43,7 @@ def to_srt(transcript: Iterator[dict]):
     return out
 
 def scribe(audio_path):
-    print(audio_path)
     result = model.transcribe(audio_path)
-    print(result)
     return to_srt(result["segments"])
 
 def _max_width_():
@@ -110,7 +109,7 @@ def transcribe_process():
             text_value =  scribe(output_file_path)
             if text_value:
                 col1, col2 = st.columns(2)
-                # Print the output to your Streamlit app
+
                 col1.success(file_name + " is done")
 
                 col2.download_button(
@@ -131,14 +130,23 @@ def transcribe_process():
                 """
                 )
 
+    shutil.make_archive('all', 'zip', 'output')
+
     expander = st.expander("History")
     with expander:
-        st.info(
-                f"""
-                👆 Upload Multiple Audio or Video files. 
-                """
+        with open('all.zip', mode='rb') as archive:
+                st.download_button(
+                        label="Download all",
+                        data = archive,
+                        file_name= 'all.zip',
+                        mime=None,
+                        key=None,
+                        help=None,
+                        on_click=None,
+                        args=None,
+                        kwargs=None,
                 )
-        pass
+                pass
 
 def get_file_size(f):
     old_file_position = f.tell()
