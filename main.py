@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import whisper
 import os
+import time
 from typing import Iterator
 from pydub import AudioSegment
 import shutil
@@ -180,6 +181,21 @@ def get_file_size(f):
     f.seek(old_file_position, os.SEEK_SET)
     return round((getsize / 1000000), 1)
 
+def get_pretty_date(seconds):
+    return time.ctime(seconds)
+
+def get_pretty_duration(seconds):
+    seconds = seconds % (24 * 3600)
+    hour = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+     
+    if hour != 0:
+        return "%dh%02dm%02ds" % (hour, minutes, seconds)
+    else:
+        return "%02dm%02ds" % (minutes, seconds)
+    
 def history_process():
     st.info(
                 f"""
@@ -204,9 +220,9 @@ def history_process():
     for file in os.listdir("output"):
         if file.endswith(".mp3"):
             d = {
-                'name' : file,  # some formula for obtaining values
-                'date' : os.path.getmtime("output/" + file),
-                'duration' : MP3("output/" + file).info.length
+                'name' : file,  
+                'date' : get_pretty_date(os.path.getmtime("output/" + file)),
+                'duration' : get_pretty_duration(MP3("output/" + file).info.length)
             }
             my_df.append(d)
     my_df = pd.DataFrame(my_df)
@@ -215,7 +231,7 @@ def history_process():
     selection = aggrid_interactive_table(df=my_df) 
     if selection["selected_rows"]:
         select_data =selection["selected_rows"][0] 
-        st.write("Selected:" + select_data['name'])
+        st.write("Selected: " + select_data['name'])
         
         # Get srt file
         pre, ext = os.path.splitext(select_data['name'])
