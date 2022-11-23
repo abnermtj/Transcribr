@@ -135,7 +135,13 @@ def transcribe_process():
                                                                   
 
 
-    available_vram = get_memory_free_MiB(0) # assume only 1 GPU
+    available_vram = 4000000
+    try:
+        available_vram = get_memory_free_MiB(0) # assume only 1 GPU
+    except:
+        st.info ("Unable to detect NVDia GPU on host computer")
+
+
     continue_anyway = True
     global loaded_quality
     if quality != loaded_quality:
